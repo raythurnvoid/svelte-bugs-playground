@@ -1,0 +1,111 @@
+client:789 [vite] connecting...
+client:912 [vite] connected.
+ create_effect: ROOT {type: 64, hasParent: false, parentType: null, sync: true, push: true}
+ create_effect: RENDER {type: 40, hasParent: true, parentType: '64', sync: true, push: true}
+ create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
+ create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
+ push: creating component context {runes: true, m: false}
+ create_effect: RENDER {type: 8, hasParent: true, parentType: '8', sync: false, push: true}
+ create_effect: RENDER {type: 8, hasParent: true, parentType: '8', sync: true, push: true}
+ if_block   0 0
+ create_effect: RENDER {type: 24, hasParent: true, parentType: '8', sync: true, push: true}
+ update_branch true {previousCondition: Symbol(), conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false}
+ update_branch: condition is truthy {consequent_effect: false, alternate_effect: false, willResumeConsequent: false, willPauseAlternate: false}
+ creating new consequent_effect
+ create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
+ create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
+ create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
+ create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
+ create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
+ push: creating component context {runes: true, m: false}
+ create_effect: RENDER {type: 8, hasParent: true, parentType: '8', sync: false, push: true}
+ create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
+ create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
+ create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
+ create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
+context.js?t=1748709520195:104 push: creating component context {runes: false, m: false}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 8, hasParent: true, parentType: '8', sync: false, push: true}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
+context.js?t=1748709520195:104 push: creating component context {runes: true, m: false}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 8, hasParent: true, parentType: '8', sync: false, push: true}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
+context.js?t=1748709520195:104 push: creating component context {runes: true, m: false}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 8, hasParent: true, parentType: '8', sync: false, push: true}
+NestedComponent.svelte?t=1748711306222:17 NestedComponent executing
+effects.js?t=1748709520195:123 create_effect: UNKNOWN {type: 262144, hasParent: true, parentType: '8', sync: true, push: true}
+if.js?t=1748710944979:22 if_block <!--[--> ($$render) => {
+			if ($.strict_equals(stateObjectFromContext.showText, true)) $$render(consequent);
+		} 0 0
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 24, hasParent: true, parentType: '8', sync: true, push: true}
+if.js?t=1748710944979:55 update_branch true {previousCondition: Symbol(), conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false}
+if.js?t=1748710944979:65 update_branch: condition is truthy {consequent_effect: false, alternate_effect: false, willResumeConsequent: false, willPauseAlternate: false}
+if.js?t=1748710944979:76 creating new consequent_effect
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
+effects.js?t=1748709520195:369 template_effect created for text expression {activeEffect: true, activeEffectType: 'BRANCH'}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 24, hasParent: true, parentType: '8', sync: true, push: true}
+render.js?t=1748710940421:76 set_text "true" true {activeEffect: true, activeEffectParent: 'HAS_PARENT', activeEffectType: 'RENDER', effectChain: 'RENDER → BRANCH → RENDER → BRANCH → RENDER'}
+effects.js?t=1748709520195:619 resume_effect called: {effectType: 'BRANCH', hasChildren: true}
+context.js?t=1748709520195:142 pop: setting mounted flag {m: true}
+effects.js?t=1748709520195:123 create_effect: UNKNOWN {type: 4, hasParent: true, parentType: '8', sync: false, push: true}
+context.js?t=1748709520195:142 pop: setting mounted flag {m: true}
+effects.js?t=1748709520195:123 create_effect: UNKNOWN {type: 4, hasParent: true, parentType: '8', sync: false, push: true}
+context.js?t=1748709520195:142 pop: setting mounted flag {m: true}
+effects.js?t=1748709520195:123 create_effect: UNKNOWN {type: 4, hasParent: true, parentType: '8', sync: false, push: true}
+context.js?t=1748709520195:142 pop: setting mounted flag {m: true}
+effects.js?t=1748709520195:123 create_effect: UNKNOWN {type: 4, hasParent: true, parentType: '8', sync: false, push: true}
+effects.js?t=1748709520195:619 resume_effect called: {effectType: 'BRANCH', hasChildren: true}
+if.js?t=1748710944979:22 if_block <!--[!--> ($$render) => {
+			if ($.get(mounted)) $$render(consequent_2);
+		} 0 0
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 24, hasParent: true, parentType: '8', sync: true, push: true}
+if.js?t=1748710944979:55 update_branch null {previousCondition: Symbol(), conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false}
+if.js?t=1748710944979:87 update_branch: condition is falsy {consequent_effect: false, alternate_effect: false, willResumeAlternate: false, willPauseConsequent: false}
+context.js?t=1748709520195:142 pop: setting mounted flag {m: true}
+effects.js?t=1748709520195:123 create_effect: UNKNOWN {type: 4, hasParent: true, parentType: '8', sync: false, push: true}
+effects.js?t=1748709520195:123 create_effect: UNKNOWN {type: 4, hasParent: true, parentType: '8', sync: false, push: true}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 8, hasParent: true, parentType: undefined, sync: true, push: true}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 8, hasParent: true, parentType: undefined, sync: true, push: true}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 8, hasParent: true, parentType: undefined, sync: true, push: true}
+if.js?t=1748710944979:55 update_branch true {previousCondition: null, conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false}
+if.js?t=1748710944979:65 update_branch: condition is truthy {consequent_effect: false, alternate_effect: false, willResumeConsequent: false, willPauseAlternate: false}
+if.js?t=1748710944979:76 creating new consequent_effect
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
+if.js?t=1748710944979:22 if_block <!----> ($$render) => {
+					if ($.get(navigated)) $$render(consequent_1);
+				} 0 0
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 24, hasParent: true, parentType: '8', sync: true, push: true}
+if.js?t=1748710944979:55 update_branch null {previousCondition: Symbol(), conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false}
+if.js?t=1748710944979:87 update_branch: condition is falsy {consequent_effect: false, alternate_effect: false, willResumeAlternate: false, willPauseConsequent: false}
+effects.js?t=1748709520195:619 resume_effect called: {effectType: 'BRANCH', hasChildren: true}
+if.js?t=1748710944979:55 update_branch null {previousCondition: true, conditionChanged: true, hasConsequentEffect: true, hasAlternateEffect: false}
+if.js?t=1748710944979:87 update_branch: condition is falsy {consequent_effect: true, alternate_effect: false, willResumeAlternate: false, willPauseConsequent: true}
+if.js?t=1748710944979:103 pausing consequent_effect - THIS SHOULD HAPPEN IN MOUNT!
+effects.js?t=1748709520195:551 pause_effect called: {effectType: 'BRANCH', hasChildren: true}
+if.js?t=1748710944979:55 update_branch true {previousCondition: null, conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false}
+if.js?t=1748710944979:65 update_branch: condition is truthy {consequent_effect: false, alternate_effect: false, willResumeConsequent: false, willPauseAlternate: false}
+if.js?t=1748710944979:76 creating new consequent_effect
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
+effects.js?t=1748709520195:369 template_effect created for text expression {activeEffect: true, activeEffectType: 'BRANCH'}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 24, hasParent: true, parentType: '8', sync: true, push: true}
+render.js?t=1748710940421:76 set_text "true" true {activeEffect: true, activeEffectParent: 'HAS_PARENT', activeEffectType: 'RENDER', effectChain: 'RENDER → BRANCH → RENDER → BRANCH → RENDER'}
+effects.js?t=1748709520195:619 resume_effect called: {effectType: 'BRANCH', hasChildren: true}
+if.js?t=1748710944979:55 update_branch null {previousCondition: true, conditionChanged: true, hasConsequentEffect: true, hasAlternateEffect: false}
+if.js?t=1748710944979:87 update_branch: condition is falsy {consequent_effect: true, alternate_effect: false, willResumeAlternate: false, willPauseConsequent: true}
+if.js?t=1748710944979:103 pausing consequent_effect - THIS SHOULD HAPPEN IN MOUNT!
+effects.js?t=1748709520195:551 pause_effect called: {effectType: 'BRANCH', hasChildren: true}
+if.js?t=1748710944979:55 update_branch true {previousCondition: null, conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false}
+if.js?t=1748710944979:65 update_branch: condition is truthy {consequent_effect: false, alternate_effect: false, willResumeConsequent: false, willPauseAlternate: false}
+if.js?t=1748710944979:76 creating new consequent_effect
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
+effects.js?t=1748709520195:369 template_effect created for text expression {activeEffect: true, activeEffectType: 'BRANCH'}
+effects.js?t=1748709520195:123 create_effect: RENDER {type: 24, hasParent: true, parentType: '8', sync: true, push: true}
+render.js?t=1748710940421:76 set_text "true" true {activeEffect: true, activeEffectParent: 'HAS_PARENT', activeEffectType: 'RENDER', effectChain: 'RENDER → BRANCH → RENDER → BRANCH → RENDER'}
+effects.js?t=1748709520195:619 resume_effect called: {effectType: 'BRANCH', hasChildren: true}
+if.js?t=1748710944979:55 update_branch null {previousCondition: true, conditionChanged: true, hasConsequentEffect: true, hasAlternateEffect: false}
+if.js?t=1748710944979:87 update_branch: condition is falsy {consequent_effect: true, alternate_effect: false, willResumeAlternate: false, willPauseConsequent: true}
+if.js?t=1748710944979:103 pausing consequent_effect - THIS SHOULD HAPPEN IN MOUNT!
+effects.js?t=1748709520195:551 pause_effect called: {effectType: 'BRANCH', hasChildren: true}
