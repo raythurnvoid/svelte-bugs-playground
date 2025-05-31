@@ -154,6 +154,238 @@ const update_branch = (new_condition, fn) => {
 
 **Key:** Lines 98-103 should pause effects when condition becomes falsy, but this doesn't happen in mount mode due to corrupted effect context.
 
+## Failed Fix Attempts - Detailed Analysis
+
+### Failed Attempt #1: Moving pop() to Cleanup Function
+
+**Original Code (render.js:300):**
+
+```javascript
+branch(() => {
+	if (context) {
+		push({});
+		var ctx = component_context;
+		ctx.c = context;
+	}
+	component = Component(anchor_node, props) || {};
+	if (context) {
+		pop(); // Called here originally
+	}
+});
+```
+
+**Failed Fix:**
+
+```javascript
+branch(() => {
+	if (context) {
+		push({});
+		var ctx = component_context;
+		ctx.c = context;
+	}
+	component = Component(anchor_node, props) || {};
+	// Removed pop() from here
+});
+
+return () => {
+	if (context) {
+		pop(); // Moved to cleanup - WRONG!
+	}
+	// ... other cleanup
+};
+```
+
+**Why It Failed:**
+
+1. **Wrong Lifecycle Phase:** Cleanup function runs during **unmount**, not after mount completion
+2. **Context Never Restored:** `component_context` remains pushed throughout entire component lifecycle
+3. **Memory Leak:** Context stack grows indefinitely with multiple mounts
+4. **Effect Hierarchy Still Corrupted:** The timing issue remains - effects created before context is properly established
+5. **No Functional Change:** Mount behavior remains identical since cleanup only runs on unmount
+
+**Evidence:** Mount log still shows `parentType: undefined` and missing `pause_effect` calls.
+
+### Failed Attempt #2: Wrapping pop() in effect()
+
+**Failed Fix:**
+
+```javascript
+if (context) {
+	effect(() => {
+		pop();
+	});
+}
+```
+
+**Why It Failed:**
+
+1. **Asynchronous Scheduling:** `effect()` schedules the pop operation for next microtask, creating race condition
+2. **Wrong Effect Type:** `effect()` creates a regular effect (type: EFFECT), not a sync operation
+3. **Deferred Execution Problem:** Component creation completes with context still pushed, then pop() runs later
+4. **Effect Context Corruption:** By the time pop() runs, child effects are already created with wrong parent context
+5. **Timing Dependency:** Success depends on when the scheduled effect runs relative to state changes
+
+**Technical Analysis:**
+
+```javascript
+// From effects.js:292
+export function effect(fn) {
+	return create_effect(EFFECT, fn, false); // sync = false!
+}
+```
+
+The `sync: false` parameter means the effect is scheduled, not executed immediately. This introduces timing dependency where component effects are created before the context cleanup runs.
+
+### Failed Attempt #3: Modifying if_block with ~EFFECT_TRANSPARENT
+
+**Failed Fix:**
+
+```javascript
+// In if.js if_block function
+block(() => {
+	has_branch = false;
+	fn(set_branch);
+	if (!has_branch) {
+		update_branch(null, null);
+	}
+}, flags & ~EFFECT_TRANSPARENT);
+```
+
+**Why It Failed:**
+
+1. **Wrong Problem Target:** This addresses effect transparency, not context corruption
+2. **EFFECT_TRANSPARENT Misunderstanding:** This flag controls transition boundaries, not effect parent context
+3. **No Context Impact:** Removing EFFECT_TRANSPARENT doesn't affect the `component_context` corruption
+4. **Unchanged Effect Hierarchy:** The `parentType: undefined` issue remains unchanged
+5. **Bark vs. Tree:** This fixes a symptom (transition behavior) rather than the root cause (context timing)
+
+**Technical Analysis:**
+
+```javascript
+// From constants.js:17
+/** 'Transparent' effects do not create a transition boundary */
+export const EFFECT_TRANSPARENT = 1 << 16;
+```
+
+`EFFECT_TRANSPARENT` only affects transition boundaries. The actual problem is in the `create_effect` function where `parent` and `ctx` are captured:
+
+```javascript
+// From effects.js:84-95
+function create_effect(type, fn, sync, push = true) {
+	var parent = active_effect;  // Wrong parent due to early pop()
+	var effect = {
+		ctx: component_context,  // Wrong context due to early pop()
+		parent,                  // Wrong parent reference
+		// ... other properties
+	};
+}
+```
+
+### Failed Attempt #4: Artificial Delays (Workaround Only)
+
+**Implementation:**
+
+```javascript
+setTimeout(() => {
+	setInterval(() => {
+		stateObject.showText = !stateObject.showText;
+	}, 1000);
+}, 2000); // 2 second delay
+```
+
+**Why It "Works":**
+
+- Allows full mount completion before state changes
+- Mount log with delay shows correct `pause_effect` calls
+- Effect context stabilized by time of state change
+
+**Why It's Not a Real Fix:**
+
+- Doesn't address root cause of effect context corruption
+- Brittle timing-dependent solution
+- Impractical for real applications
+- Still shows `parentType: undefined` during mount
+
+### Failed Attempt #5: Completely Removing pop() Call
+
+**Critical Discovery:**
+
+```javascript
+if (context) {
+	// pop(); // Completely commented out
+}
+```
+
+**Result:** **Issue still persists** - conditional rendering still broken in mount mode.
+
+**Why This Is Significant:**
+
+1. **pop() timing is NOT the root cause** - the issue runs deeper
+2. **Effect hierarchy corruption happens independently** of context restoration
+3. **The problem originates during component initialization** itself, not during cleanup
+4. **Fundamental difference in effect creation** between template and mount rendering
+
+**Evidence:** Even without any pop() call, mount logs still show:
+- `parentType: undefined` effects being created
+- Missing `update_branch` calls during state changes  
+- Direct `set_text` calls bypassing conditional logic
+- No `pause_effect` calls when condition becomes falsy
+
+**Conclusion:** The context restoration timing was a red herring. The real issue is in how the effect dependency graph is established during mount vs template rendering.
+
+## Root Cause Analysis: Fundamental Effect Dependency Graph Corruption
+
+### The Real Issue: Different Effect Creation Patterns
+
+Based on the critical discovery that **completely removing pop() doesn't fix the issue**, the problem is not context restoration timing but rather **fundamental differences in how effect dependency graphs are built** during mount vs template rendering.
+
+The problem occurs in `create_effect()` function (effects.js:84-95):
+
+```javascript
+function create_effect(type, fn, sync, push = true) {
+	var parent = active_effect;    // Line 84 - Captures current active_effect
+	var effect = {
+		ctx: component_context,    // Line 95 - Captures current component_context
+		parent,                    // Line 100 - Wrong parent even without pop()
+		// ... other properties
+	};
+}
+```
+
+**The True Problem Sequence (Even Without pop()):**
+
+1. `mount()` calls `component_root()` → creates ROOT_EFFECT 
+2. `branch()` called → creates BRANCH_EFFECT with different context than template
+3. `Component()` called → creates effects in **fundamentally different environment** than template
+4. Effect parent chain established incorrectly from the start
+5. Dependency tracking broken between state changes and conditional rendering
+6. `if_block` effects cannot properly pause/resume because dependency graph is malformed
+
+**Key Insight:** Template rendering creates a naturally hierarchical effect tree through the component lifecycle, while mount rendering creates effects in an artificial root context that breaks the dependency chain needed for conditional rendering to work.
+
+### Effect Hierarchy Comparison
+
+**Template (Correct):**
+```
+App Context
+└── App RENDER_EFFECT
+    └── NestedComponent Context (maintained by template)
+        └── NestedComponent RENDER_EFFECT
+            └── if_block BRANCH_EFFECT
+                └── Text RENDER_EFFECT
+```
+
+**Mount (Broken):**
+```
+App Context
+└── ROOT_EFFECT
+    └── BRANCH_EFFECT
+        └── NestedComponent Context (popped too early)
+            └── NestedComponent RENDER_EFFECT (wrong parent context)
+                └── if_block BRANCH_EFFECT (wrong parent context)
+                    └── Text RENDER_EFFECT (wrong parent context)
+```
+
 ## Race Condition Analysis
 
 ### Timeline Comparison
@@ -193,156 +425,6 @@ create_effect: UNKNOWN {type: 262144, hasParent: true, parentType: '8', sync: tr
 ```
 
 **Problem:** `parentType: undefined` on line 46 shows ROOT effect created without proper parent context.
-
-## Failed Fix Attempts - Detailed Analysis
-
-### Failed Attempt #1: Moving pop() to Cleanup
-
-**Original Code:**
-
-```javascript
-branch(() => {
-	if (context) {
-		push({});
-		var ctx = component_context;
-		ctx.c = context;
-	}
-	component = Component(anchor_node, props) || {};
-	if (context) {
-		pop(); // Called here originally
-	}
-});
-```
-
-**Failed Fix:**
-
-```javascript
-branch(() => {
-	if (context) {
-		push({});
-		var ctx = component_context;
-		ctx.c = context;
-	}
-	component = Component(anchor_node, props) || {};
-	// Removed pop() from here
-});
-
-return () => {
-	if (context) {
-		pop(); // Moved to cleanup - WRONG!
-	}
-	// ... other cleanup
-};
-```
-
-**Why It Failed:**
-
-1. Cleanup function runs during **unmount**, not after mount completion
-2. Context remains corrupted during entire component lifecycle
-3. Mount log still shows `parentType: undefined`
-4. Mount log still missing `pause_effect` calls
-5. No change in problematic behavior
-
-**Evidence - Mount Log After Failed Fix (Lines 89-93):**
-
-```
-service.svelte.ts Starting interval
-service.svelte.ts Changing state from true to false
-if.js update_branch null {previousCondition: true, conditionChanged: true, hasConsequentEffect: true, hasAlternateEffect: false}
-if.js update_branch: condition is falsy {consequent_effect: true, alternate_effect: false, willResumeAlternate: false, willPauseConsequent: true}
-if.js pausing consequent_effect - THIS SHOULD HAPPEN IN MOUNT!
-```
-
-**Interesting:** With 2-second delay, the fix actually worked, proving timing is the issue.
-
-### Failed Attempt #2: Artificial Delays (Workaround Only)
-
-**Implementation:**
-
-```javascript
-setTimeout(() => {
-	setInterval(() => {
-		stateObject.showText = !stateObject.showText;
-	}, 1000);
-}, 2000); // 2 second delay
-```
-
-**Why It "Works":**
-
-- Allows full mount completion before state changes
-- Mount log with delay shows correct `pause_effect` calls
-- Effect context stabilized by time of state change
-
-**Why It's Not a Real Fix:**
-
-- Doesn't address root cause of effect context corruption
-- Brittle timing-dependent solution
-- Impractical for real applications
-- Still shows `parentType: undefined` during mount
-
-## Root Cause Deep Dive
-
-### The Core Problem: Context Stack Corruption
-
-**Normal Template Flow:**
-
-```
-App Component Context
-├── <NestedComponent /> created
-├── NestedComponent Context pushed
-├── NestedComponent effects created (stable parent context)
-├── NestedComponent rendering completes
-└── Context naturally maintained by App's lifecycle
-```
-
-**Broken Mount Flow:**
-
-```
-mount() called
-├── component_root() creates ROOT effect
-├── branch() creates BRANCH effect
-├── push({}) creates NestedComponent context
-├── Component() creates NestedComponent effects
-├── pop() immediately restores context ← CORRUPTION POINT
-└── NestedComponent effects left with dangling parent references
-```
-
-### Effect Context Analysis
-
-**File: `node_modules/svelte/src/internal/client/reactivity/effects.js`**
-
-**create_effect Function (Lines 75-105):**
-
-```javascript
-function create_effect(type, fn, sync, push = true) {
-	var parent = active_effect; // Line 77 - Gets current active effect
-
-	/** @type {Effect} */
-	var effect = {
-		ctx: component_context, // Line 82 - Gets current component context
-		deps: null,
-		nodes_start: null,
-		nodes_end: null,
-		f: type | DIRTY,
-		first: null,
-		fn,
-		last: null,
-		next: null,
-		parent, // Line 92 - Sets parent from active_effect
-		prev: null,
-		teardown: null,
-		transitions: null,
-		wv: 0
-	};
-}
-```
-
-**Problem:** When `pop()` is called too early:
-
-1. `component_context` is restored to parent (line 82)
-2. Subsequent effect creation gets wrong context
-3. `active_effect` hierarchy becomes corrupted
-4. `parent` references point to effects in different context
 
 ## Debugging Evidence
 
@@ -398,74 +480,39 @@ export const ROOT_EFFECT = 1 << 6; // 64
 
 ## Proposed Fix - Technical Details
 
-### Solution: Defer Context Pop Using Effect System
+### Solution: Reconstruct Effect Hierarchy to Match Template Rendering
 
-**New Implementation:**
+**Understanding Required:** Since the issue is fundamental to how mount creates effects vs template rendering, the fix requires reconstructing the effect dependency graph to match template behavior.
 
-```javascript
-function _mount(Component, { target, anchor, props = {}, events, context, intro = true }) {
-	// ... existing setup code ...
+**Areas Requiring Investigation:**
 
-	var unmount = component_root(() => {
-		var anchor_node = anchor ?? target.appendChild(create_text());
+1. **Effect Parent Chain:** How template rendering naturally creates hierarchical effects vs mount's artificial root context
+2. **Dependency Tracking:** Why state changes trigger `update_branch` calls in template but not mount
+3. **Component Context Integration:** How template components inherit proper reactive context vs mount isolation
+4. **Conditional Effect Creation:** Why `if_block` effects work correctly in template but bypass logic in mount
 
-		branch(() => {
-			if (context) {
-				push({});
-				var ctx = /** @type {ComponentContext} */ (component_context);
-				ctx.c = context;
-			}
+**Potential Fix Approaches:**
 
-			if (events) {
-				/** @type {any} */ (props).$$events = events;
-			}
+1. **Modify `component_root()` behavior** to better mimic template component creation
+2. **Adjust effect creation in mount path** to establish proper parent relationships  
+3. **Fix dependency tracking** between state and conditional rendering effects
+4. **Ensure proper reactive context inheritance** during mount
 
-			if (hydrating) {
-				assign_nodes(/** @type {TemplateNode} */ (anchor_node), null);
-			}
-
-			should_intro = intro;
-			component = Component(anchor_node, props) || {};
-			should_intro = true;
-
-			if (hydrating) {
-				/** @type {Effect} */ (active_effect).nodes_end = hydrate_node;
-			}
-
-			// FIXED: Use teardown to defer context cleanup
-			if (context) {
-				teardown(() => {
-					pop();
-				});
-			}
-		});
-
-		return () => {
-			// ... existing cleanup code ...
-		};
-	});
-
-	mounted_components.set(component, unmount);
-	return component;
-}
-```
-
-### Why This Fix Works
-
-1. **Context Stability:** `push({})` creates context that remains stable during component initialization
-2. **Effect Hierarchy:** All child effects created with correct parent context
-3. **Proper Cleanup:** `teardown()` schedules `pop()` to run after effect establishment
-4. **Effect Lifecycle:** Branch effects get proper pause/resume behavior
-5. **No Race Conditions:** Context cleanup happens at appropriate time in effect lifecycle
+**This requires deeper investigation into:**
+- How template rendering establishes effect hierarchy
+- What specific effect relationships are missing in mount mode
+- How to recreate the natural component lifecycle that template rendering provides
 
 ### Expected Log Changes After Fix
 
 **Mount log should show:**
 
-1. `parentType: '8'` instead of `undefined`
-2. `pause_effect called` when conditions become falsy
-3. Single `set_text` calls instead of alternating patterns
-4. Effect hierarchy matching template rendering
+1. `parentType: '8'` instead of `undefined` (proper effect parent relationships)
+2. `update_branch` calls during state changes (dependency tracking working)
+3. `pause_effect called` when conditions become falsy (conditional logic working)
+4. Single `set_text` calls instead of alternating patterns (proper conditional rendering)
+5. Effect hierarchy matching template rendering (consistent behavior)
+6. Mount and template logs showing identical conditional rendering patterns
 
 ## Testing Requirements
 
@@ -494,6 +541,164 @@ function _mount(Component, { target, anchor, props = {}, events, context, intro 
 2. **`src/internal/client/reactivity/effects.js`** - Import `teardown` if needed
 3. **Tests** - Add comprehensive mount vs template tests
 4. **Documentation** - Update mount() behavior documentation
+
+## Additional Investigation Findings
+
+### Critical Discovery: Bug Persists Even with Runes Mode
+
+**Forced Runes Compilation:**
+
+Even when forcing runes mode with `$.push($$props, true, NestedComponent)`, the bug persists:
+
+```javascript
+function NestedComponent($$anchor, $$props) {
+	$.check_target(new.target);
+	$.push($$props, true, NestedComponent); // Runes mode forced
+	// ... rest of component
+	$.if(node, ($$render) => {
+		if ($.strict_equals(stateObjectFromContext.showText, true)) $$render(consequent);
+	});
+}
+```
+
+**Implications:**
+- The bug is not related to legacy vs runes mode
+- The issue exists in the core conditional rendering logic
+- Effect creation patterns are fundamentally different regardless of compilation mode
+
+### $inspect Accidentally Fixes the Bug
+
+**Key Finding:** Adding `$inspect(stateObjectFromContext.showText)` fixes the conditional rendering.
+
+**Compiled Difference Analysis:**
+
+**Without $inspect (Broken):**
+```javascript
+$.if(node, ($$render) => {
+	if ($.strict_equals(stateObjectFromContext.showText, true)) $$render(consequent);
+});
+```
+
+**With $inspect (Fixed):**
+```javascript
+var stateObjectFromContext = $.run(() => getContext('stateContext'));
+// ... later ...
+$.if(node, ($$render) => {
+	if ($.strict_equals($.get(stateObjectFromContext), true)) $$render(consequent);
+});
+```
+
+**Critical Difference:**
+- **Without $inspect:** Direct property access `stateObjectFromContext.showText`
+- **With $inspect:** Reactive access via `$.get(stateObjectFromContext)` with `$.run()` wrapper
+
+**Why $inspect Fixes It:**
+1. `$.run()` creates proper reactive dependency tracking
+2. `$.get()` ensures reactive reads are tracked
+3. The conditional becomes properly reactive instead of static
+
+### First If Block Bug vs Subsequent Ones Work
+
+**Multi-If Test Results:**
+
+When adding multiple if blocks in the same component:
+```svelte
+{#if stateObjectFromContext.showText === true}
+	<h1>{stateObjectFromContext.showText}</h1>  <!-- BROKEN -->
+{/if}
+
+{#if stateObjectFromContext.showText === true}
+	<h2>{stateObjectFromContext.showText}</h2>  <!-- WORKS -->
+{/if}
+```
+
+**Key Finding:** The **first if block has the bug** but **subsequent if blocks work correctly**.
+
+**Implications:**
+- The bug affects the **first reactive access** in the component
+- Subsequent reactive accesses work properly
+- This suggests an **initialization timing issue** with the first reactive dependency
+- The effect dependency graph is corrupted only for the first conditional
+
+### Debugging Stack Trace Analysis
+
+**Stack Trace When Hitting block() Function:**
+
+```
+block (effects.js:387)
+wrapper (hmr.js:28)
+(anonymous) (render.js:269)
+update_reaction (runtime.js:414)
+update_effect (runtime.js:580)
+create_effect (effects.js:144)
+branch (effects.js:396)
+(anonymous) (render.js:251)
+_mount (render.js:248)
+hydrate (render.js:163)
+Svelte4Component (legacy-client.js:113)
+```
+
+**Key Insights:**
+- This is **SvelteKit framework initialization**, not the test component
+- The actual bug occurs later in the component lifecycle
+- Framework-level effects are being created properly
+- The issue is specific to user component effect creation
+
+### Improved Effect Type Logging
+
+**Enhanced Debugging Information:**
+
+Instead of cryptic numbers like `type: 24`, we need readable effect types:
+
+```javascript
+const EFFECT_TYPES = {
+	8: 'RENDER_EFFECT',
+	16: 'BRANCH_EFFECT', 
+	24: 'RENDER_EFFECT | BRANCH_EFFECT',
+	32: 'BLOCK_EFFECT',
+	40: 'RENDER_EFFECT | BLOCK_EFFECT',
+	64: 'ROOT_EFFECT'
+};
+```
+
+**Clearer Log Output:**
+```
+create_effect: RENDER_EFFECT | BRANCH_EFFECT {
+	hasParent: true, 
+	parentType: 'ROOT_EFFECT', 
+	sync: true, 
+	component: 'NestedComponent'
+}
+```
+
+### Updated Root Cause Understanding
+
+**Revised Analysis:**
+
+The bug is **not about `pop()` timing** but about **reactive dependency tracking initialization**:
+
+1. **First reactive access** in mounted components fails to establish proper tracking
+2. **$inspect fixes it** by forcing `$.run()` and `$.get()` usage
+3. **Subsequent reactive accesses work** because the dependency graph is already established
+4. **Template rendering works** because it naturally creates reactive dependencies
+5. **Mount rendering fails** because the first reactive access isn't properly tracked
+
+**The Real Problem:**
+```javascript
+// Broken (direct access)
+if (stateObjectFromContext.showText === true)
+
+// Working (reactive access) 
+if ($.get(stateObjectFromContext) === true)
+```
+
+### Investigation Areas Still Needed
+
+1. **Why does the first reactive access fail** in mounted components?
+2. **How does template rendering** automatically create reactive dependencies?
+3. **What makes subsequent if blocks work** when the first one fails?
+4. **Can we force reactive tracking** for the first access without $inspect?
+5. **Where in the compilation process** does the reactive vs non-reactive decision happen?
 
 ## Backward Compatibility
 

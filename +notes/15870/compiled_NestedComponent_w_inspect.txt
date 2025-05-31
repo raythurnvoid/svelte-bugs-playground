@@ -1,0 +1,55 @@
+import { createHotContext as __vite__createHotContext } from "/@vite/client";import.meta.hot = __vite__createHotContext("/src/routes/15870/components/NestedComponent.svelte");import "/@fs/C:/Users/rt0/Documents/workspace/rt0/svelte/packages/svelte/src/internal/disclose-version.js";
+
+NestedComponent[$.FILENAME] = 'src/routes/15870/components/NestedComponent.svelte';
+
+import * as $ from "/@fs/C:/Users/rt0/Documents/workspace/rt0/svelte/packages/svelte/src/internal/client/index.js?t=1748722513159";
+import { getContext } from "/@fs/C:/Users/rt0/Documents/workspace/rt0/svelte/packages/svelte/src/index-client.js?t=1748722513159";
+
+var root_1 = $.add_locations($.from_html(`<h1> </h1>`), NestedComponent[$.FILENAME], [[17, 1]]);
+var root = $.add_locations($.from_html(`<p>Following text is inside an 'if' statement and should only ever be able to show 'true'</p> <!>`, 1), NestedComponent[$.FILENAME], [[14, 0]]);
+
+function NestedComponent($$anchor, $$props) {
+	$.check_target(new.target);
+	$.push($$props, true, NestedComponent);
+
+	const stateObjectFromContext = getContext('stateContext');
+
+	console.debug('NestedComponent executing');
+
+	$.inspect(() => [
+		stateObjectFromContext.showText,
+		'NestedComponent Effect running: stateObjectFromContext.showText'
+	]);
+
+	var fragment = root();
+	var node = $.sibling($.first_child(fragment), 2);
+
+	{
+		var consequent = ($$anchor) => {
+			var h1 = root_1();
+			var text = $.child(h1, true);
+
+			$.reset(h1);
+			$.template_effect(() => $.set_text(text, stateObjectFromContext.showText));
+			$.append($$anchor, h1);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.strict_equals(stateObjectFromContext.showText, true)) $$render(consequent);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	return $.pop({ ...$.legacy_api() });
+}
+
+if (import.meta.hot) {
+	NestedComponent = $.hmr(NestedComponent, () => NestedComponent[$.HMR].source);
+
+	import.meta.hot.acceptExports(["default"],(module) => {
+		module.default[$.HMR].source = NestedComponent[$.HMR].source;
+		$.set(NestedComponent[$.HMR].source, module.default[$.HMR].original);
+	});
+}
+
+export default NestedComponent;
