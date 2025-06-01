@@ -4,6 +4,127 @@
 
 Programmatically mounted components using `mount()` exhibit fundamentally different conditional rendering behavior compared to template-rendered components, specifically affecting `{#if}` block lifecycle management and effect context hierarchy.
 
+## Understanding Svelte's Reactivity System
+
+### Sources (Signals)
+
+A **Source** is Svelte's fundamental reactive primitive - essentially a container for a value that can notify dependents when it changes.
+
+#### Type Definition
+
+```typescript
+export interface Value<V = unknown> extends Signal {
+	/** Equality function */
+	equals: Equals;
+	/** Signals that read from this signal */
+	reactions: null | Reaction[];
+	/** Read version */
+	rv: number;
+	/** The latest value for this signal */
+	v: V;
+	/** Write version */
+	wv: number;
+}
+
+export type Source<V = unknown> = Value<V>;
+```
+
+#### Key Properties
+
+- **`v`**: The actual value stored in the source
+- **`reactions`**: Array of all reactions (effects, deriveds) that read from this source
+- **`equals`**: Function to determine if a new value is different from the current one
+- **`rv`/`wv`**: Read/write versions for optimization and dependency tracking
+
+#### Examples in Svelte Code
+
+```javascript
+// $state() creates a source
+const count = $state(0); // Creates a Source<number>
+
+// Proxy properties create sources
+const obj = $state({ name: 'John' }); // obj.name becomes a Source<string>
+```
+
+### Reactions
+
+A **Reaction** is anything that reads from sources and can be re-executed when those sources change.
+
+#### Type Definition
+
+```typescript
+export interface Reaction extends Signal {
+	/** The associated component context */
+	ctx: null | ComponentContext;
+	/** The reaction function */
+	fn: null | Function;
+	/** Signals that this signal reads from */
+	deps: null | Value[];
+}
+```
+
+#### Types of Reactions
+
+1. **Effects** - Side effects that run when dependencies change
+2. **Derived signals** - Computed values that update when dependencies change
+3. **Template effects** - DOM updates, text content changes, etc.
+
+#### Key Properties
+
+- **`fn`**: The function that gets re-executed when dependencies change
+- **`deps`**: Array of all sources this reaction reads from
+- **`ctx`**: Component context for cleanup and lifecycle management
+
+#### Examples in Svelte Code
+
+```javascript
+// $effect creates a reaction
+$effect(() => {
+	console.log(count); // Reads from count source, creates dependency
+});
+
+// $derived creates a derived reaction
+const doubled = $derived(count * 2);
+
+// Template expressions create reactions
+{
+	count;
+} // Creates template effect that updates DOM when count changes
+```
+
+### The Dependency Graph
+
+The reactivity system works by building a **bidirectional dependency graph**:
+
+```
+Source                    ←→                    Reaction
+┌─────────────────┐                      ┌─────────────────┐
+│ count           │                      │ effect(() => {  │
+│ v: 5            │                      │   console.log(  │
+│ reactions: [→]  │ ──────────────────→ │     count       │
+│                 │                      │   )             │
+└─────────────────┘                      │ })              │
+                                         │ deps: [←]       │
+                                         └─────────────────┘
+```
+
+#### How It Works
+
+1. **Dependency Registration**: When a reaction reads a source (via `get()`), the source adds the reaction to its `reactions` array, and the reaction adds the source to its `deps` array
+
+2. **Change Propagation**: When a source changes (via `set()`), it iterates through its `reactions` array and marks each reaction as dirty to be re-executed
+
+3. **Cleanup**: When reactions are destroyed, they're removed from their sources' `reactions` arrays
+
+### Critical Insight for This Bug
+
+The reactivity system is elegant but **sensitive to timing** - sources and reactions must be properly connected during the initial read, or the entire reactive chain breaks down. The bug occurs because:
+
+- **Dependency registration in `get()` depends on having the correct `active_reaction` context**
+- **Mount rendering creates a different effect hierarchy than template rendering**
+- **The first `{#if}` block fails dependency registration**, meaning its effect never gets added to the source's `reactions` array
+- **When the source changes, that effect never gets marked as dirty**, breaking conditional rendering
+
 ## Reproduction Case
 
 ### Test Setup
@@ -21,6 +142,132 @@ Conditional should only show content when `showText === true`, pausing effects w
 
 - **Template:** Works correctly, shows proper effect pausing
 - **Mount:** Shows both true/false values, missing effect pausing
+
+## CONFIRMED ROOT CAUSE: First IF BLOCK Missing from Reactions Array
+
+### Critical Discovery from internal_set Logging
+
+**CONFIRMED:** The fundamental issue is that **the first `{#if}` block is NOT added to the state source's reactions array**, while the second `{#if}` block IS properly added.
+
+**Evidence from `internal_set` logs:**
+
+```javascript
+// When stateObject.showText changes from true to false:
+console.debug('internal_set', source, value);
+source.reactions?.forEach((reaction) => {
+	// Shows reactions for SECOND if block (h2) but NOT FIRST if block (h1)
+	console.debug('reaction log_effect_processing', log_effect_processing(reaction_as_effect));
+});
+```
+
+**Log Analysis:**
+
+- **State source reactions array contains:** Second `{#if}` block effect (wrapping `<h2>`)
+- **State source reactions array MISSING:** First `{#if}` block effect (wrapping `<h1>`)
+- **Result:** When state changes, only the second if block gets marked as DIRTY and processes the conditional logic
+- **Consequence:** First if block bypasses conditional logic entirely, shows both true/false values
+
+### Why This Breaks Conditional Rendering
+
+**Normal Flow (Working - Second IF Block):**
+
+1. State changes: `stateObject.showText = false`
+2. `internal_set()` called
+3. `mark_reactions()` iterates through `source.reactions`
+4. Second if block effect found in reactions array
+5. Effect marked as DIRTY
+6. `update_branch()` called → `pause_effect()` called
+7. Conditional content properly hidden
+
+**Broken Flow (First IF Block):**
+
+1. State changes: `stateObject.showText = false`
+2. `internal_set()` called
+3. `mark_reactions()` iterates through `source.reactions`
+4. **First if block effect NOT FOUND in reactions array**
+5. **Effect never marked as DIRTY**
+6. **`update_branch()` never called**
+7. **Direct `set_text()` calls bypass conditional logic**
+8. Shows both true/false values
+
+### Key Evidence from Logs
+
+**From `internal_set` debug logs:**
+
+```
+service.svelte.ts:21 Changing state from true to false
+sources.js:185 internal_set {f: 0, v: false, reactions: Array(3), ...} false
+
+// Reaction 1: Second IF block (h2) - PRESENT ✓
+sources.js:189 reaction log_effect_processing {
+	effectType: 'RENDER_EFFECT + BLOCK_EFFECT + CLEAN + EFFECT_RAN',
+	component: 'src/routes/15870/components/NestedComponent.svelte'
+}
+
+// Reaction 2: Another effect related to second IF block - PRESENT ✓
+sources.js:189 reaction log_effect_processing {
+	effectType: 'RENDER_EFFECT + BLOCK_EFFECT + CLEAN + EFFECT_RAN',
+	component: 'src/routes/15870/components/NestedComponent.svelte'
+}
+
+// Reaction 3: Third effect - PRESENT ✓
+// BUT NO REACTION FOR FIRST IF BLOCK (h1) - MISSING ✗
+```
+
+**Critical Finding:** `reactions: Array(3)` shows 3 reactions are registered, but analysis reveals none correspond to the first `{#if}` block wrapping the `<h1>`.
+
+## NEW FINDINGS: Core Issue Identified
+
+### Root Cause: IF BLOCK Effects Not Marked as DIRTY
+
+**Critical Discovery:** The fundamental issue is that **IF BLOCK effects are not being marked as DIRTY** when the state changes in mount mode.
+
+**Evidence from Debugging:**
+
+1. **State Assignment Works:** `stateObject.showText = !stateObject.showText` properly triggers the proxy setter
+2. **Reactive Chain Starts:** `mark_reactions()` is called through `internal_set()` → `mutate()` → `mark_reactions()`
+3. **IF BLOCK Missing from Chain:** The IF BLOCK effects are never marked as DIRTY, so `pause_effect()` is never called
+4. **Direct Text Updates:** Instead of conditional logic, the system falls back to direct `set_text()` calls
+
+### Evidence: Effect Processing Logs
+
+**Working Template Log:**
+
+```
+if.js update_branch true {previousCondition: Symbol(), conditionChanged: true}
+if.js update_branch: condition is truthy
+if.js update_branch null {previousCondition: true, conditionChanged: true}
+if.js pausing consequent_effect - THIS SHOULD HAPPEN IN MOUNT!
+effects.js pause_effect called: {effectType: 'BRANCH', hasChildren: true}
+```
+
+**Broken Mount Log:**
+
+```
+render.js set_text "false" false
+render.js set_text "true" true
+render.js set_text "false" false
+(no update_branch calls, no pause_effect calls)
+```
+
+**Key Difference:** Template shows `update_branch` → `pause_effect` chain, mount shows only `set_text` calls.
+
+### Effect Dependency Investigation
+
+**Call Chain for State Changes:**
+
+1. `stateObject.showText = !stateObject.showText` (proxy setter)
+2. `internal_set()` called on the state source
+3. `mutate()` called to mark dependencies
+4. `mark_reactions()` iterates through `source.reactions`
+5. **PROBLEM:** First IF BLOCK effects are missing from `source.reactions` array
+
+**Why First IF BLOCK Missing:**
+
+- First IF BLOCK effects should be in the `reactions` array of the state source
+- When state changes, `mark_reactions()` should mark these effects as DIRTY
+- **Mount mode:** First IF BLOCK effects never get added to `reactions` array
+- **Template mode:** All IF BLOCK effects properly added to `reactions` array
 
 ## Detailed Log Analysis
 
@@ -69,6 +316,57 @@ render.js set_text "false" false {activeEffect: true, activeEffectParent: 'HAS_P
 ```
 
 **Key Difference:** Template version calls `pause_effect`, mount version shows alternating `set_text` calls without pausing.
+
+## NEXT INVESTIGATION: Why First IF BLOCK Effect Not in Reactions Array
+
+### Key Questions to Answer:
+
+1. **Dependency Registration:** When/where should first IF BLOCK effects be added to `state.reactions`?
+2. **Mount vs Template Difference:** Why does template rendering properly register first if dependencies but mount doesn't?
+3. **Effect Creation Timing:** Are first IF BLOCK effects created before or after dependency registration?
+4. **Reactive Access Pattern:** How does the first `stateObjectFromContext.showText` access differ from subsequent ones?
+
+### Investigation Points:
+
+**A. Dependency Registration in `get()` function:**
+
+```javascript
+// From runtime.js get() function
+if (active_reaction !== null && !untracking) {
+	// This should add the first IF BLOCK effect to state.reactions
+	// WHY is this failing for the first but working for second IF block?
+}
+```
+
+**B. First vs Subsequent IF BLOCK Effect Creation:**
+
+```javascript
+// In if.js if_block function
+// Why does the first if_block fail dependency registration?
+// What makes the second if_block work correctly?
+```
+
+**C. State Access Pattern Analysis:**
+
+```javascript
+// First access: stateObjectFromContext.showText === true (BROKEN)
+// Second access: stateObjectFromContext.showText === true (WORKS)
+// What's different about the reactive context during first vs second access?
+```
+
+### Files to Investigate:
+
+1. **`runtime.js`** - `get()` function dependency registration for first vs subsequent calls
+2. **`if.js`** - First vs second IF BLOCK effect creation differences
+3. **`sources.js`** - How reactions array is managed during multiple if block creation
+4. **`effects.js`** - Effect creation timing and dependency tracking differences
+
+### Debugging Approach:
+
+1. **Add logging to `get()` function** when `stateObjectFromContext.showText` is accessed during first vs second if block
+2. **Log `active_reaction`** during state access for both if blocks
+3. **Track `state.reactions` array** to see when first vs second IF BLOCK effects are added/missing
+4. **Compare effect creation timing** between first and second if blocks in mount mode
 
 ## Code Path Investigation
 
@@ -272,10 +570,10 @@ export const EFFECT_TRANSPARENT = 1 << 16;
 ```javascript
 // From effects.js:84-95
 function create_effect(type, fn, sync, push = true) {
-	var parent = active_effect;  // Wrong parent due to early pop()
+	var parent = active_effect; // Wrong parent due to early pop()
 	var effect = {
-		ctx: component_context,  // Wrong context due to early pop()
-		parent,                  // Wrong parent reference
+		ctx: component_context, // Wrong context due to early pop()
+		parent // Wrong parent reference
 		// ... other properties
 	};
 }
@@ -326,8 +624,9 @@ if (context) {
 4. **Fundamental difference in effect creation** between template and mount rendering
 
 **Evidence:** Even without any pop() call, mount logs still show:
+
 - `parentType: undefined` effects being created
-- Missing `update_branch` calls during state changes  
+- Missing `update_branch` calls during state changes
 - Direct `set_text` calls bypassing conditional logic
 - No `pause_effect` calls when condition becomes falsy
 
@@ -343,10 +642,10 @@ The problem occurs in `create_effect()` function (effects.js:84-95):
 
 ```javascript
 function create_effect(type, fn, sync, push = true) {
-	var parent = active_effect;    // Line 84 - Captures current active_effect
+	var parent = active_effect; // Line 84 - Captures current active_effect
 	var effect = {
-		ctx: component_context,    // Line 95 - Captures current component_context
-		parent,                    // Line 100 - Wrong parent even without pop()
+		ctx: component_context, // Line 95 - Captures current component_context
+		parent // Line 100 - Wrong parent even without pop()
 		// ... other properties
 	};
 }
@@ -354,7 +653,7 @@ function create_effect(type, fn, sync, push = true) {
 
 **The True Problem Sequence (Even Without pop()):**
 
-1. `mount()` calls `component_root()` → creates ROOT_EFFECT 
+1. `mount()` calls `component_root()` → creates ROOT_EFFECT
 2. `branch()` called → creates BRANCH_EFFECT with different context than template
 3. `Component()` called → creates effects in **fundamentally different environment** than template
 4. Effect parent chain established incorrectly from the start
@@ -366,6 +665,7 @@ function create_effect(type, fn, sync, push = true) {
 ### Effect Hierarchy Comparison
 
 **Template (Correct):**
+
 ```
 App Context
 └── App RENDER_EFFECT
@@ -376,6 +676,7 @@ App Context
 ```
 
 **Mount (Broken):**
+
 ```
 App Context
 └── ROOT_EFFECT
@@ -494,11 +795,12 @@ export const ROOT_EFFECT = 1 << 6; // 64
 **Potential Fix Approaches:**
 
 1. **Modify `component_root()` behavior** to better mimic template component creation
-2. **Adjust effect creation in mount path** to establish proper parent relationships  
+2. **Adjust effect creation in mount path** to establish proper parent relationships
 3. **Fix dependency tracking** between state and conditional rendering effects
 4. **Ensure proper reactive context inheritance** during mount
 
 **This requires deeper investigation into:**
+
 - How template rendering establishes effect hierarchy
 - What specific effect relationships are missing in mount mode
 - How to recreate the natural component lifecycle that template rendering provides
@@ -562,6 +864,7 @@ function NestedComponent($$anchor, $$props) {
 ```
 
 **Implications:**
+
 - The bug is not related to legacy vs runes mode
 - The issue exists in the core conditional rendering logic
 - Effect creation patterns are fundamentally different regardless of compilation mode
@@ -573,6 +876,7 @@ function NestedComponent($$anchor, $$props) {
 **Compiled Difference Analysis:**
 
 **Without $inspect (Broken):**
+
 ```javascript
 $.if(node, ($$render) => {
 	if ($.strict_equals(stateObjectFromContext.showText, true)) $$render(consequent);
@@ -580,6 +884,7 @@ $.if(node, ($$render) => {
 ```
 
 **With $inspect (Fixed):**
+
 ```javascript
 var stateObjectFromContext = $.run(() => getContext('stateContext'));
 // ... later ...
@@ -589,10 +894,12 @@ $.if(node, ($$render) => {
 ```
 
 **Critical Difference:**
+
 - **Without $inspect:** Direct property access `stateObjectFromContext.showText`
 - **With $inspect:** Reactive access via `$.get(stateObjectFromContext)` with `$.run()` wrapper
 
 **Why $inspect Fixes It:**
+
 1. `$.run()` creates proper reactive dependency tracking
 2. `$.get()` ensures reactive reads are tracked
 3. The conditional becomes properly reactive instead of static
@@ -602,19 +909,23 @@ $.if(node, ($$render) => {
 **Multi-If Test Results:**
 
 When adding multiple if blocks in the same component:
+
 ```svelte
 {#if stateObjectFromContext.showText === true}
-	<h1>{stateObjectFromContext.showText}</h1>  <!-- BROKEN -->
+	<h1>{stateObjectFromContext.showText}</h1>
+	<!-- BROKEN -->
 {/if}
 
 {#if stateObjectFromContext.showText === true}
-	<h2>{stateObjectFromContext.showText}</h2>  <!-- WORKS -->
+	<h2>{stateObjectFromContext.showText}</h2>
+	<!-- WORKS -->
 {/if}
 ```
 
 **Key Finding:** The **first if block has the bug** but **subsequent if blocks work correctly**.
 
 **Implications:**
+
 - The bug affects the **first reactive access** in the component
 - Subsequent reactive accesses work properly
 - This suggests an **initialization timing issue** with the first reactive dependency
@@ -639,6 +950,7 @@ Svelte4Component (legacy-client.js:113)
 ```
 
 **Key Insights:**
+
 - This is **SvelteKit framework initialization**, not the test component
 - The actual bug occurs later in the component lifecycle
 - Framework-level effects are being created properly
@@ -653,7 +965,7 @@ Instead of cryptic numbers like `type: 24`, we need readable effect types:
 ```javascript
 const EFFECT_TYPES = {
 	8: 'RENDER_EFFECT',
-	16: 'BRANCH_EFFECT', 
+	16: 'BRANCH_EFFECT',
 	24: 'RENDER_EFFECT | BRANCH_EFFECT',
 	32: 'BLOCK_EFFECT',
 	40: 'RENDER_EFFECT | BLOCK_EFFECT',
@@ -662,11 +974,12 @@ const EFFECT_TYPES = {
 ```
 
 **Clearer Log Output:**
+
 ```
 create_effect: RENDER_EFFECT | BRANCH_EFFECT {
-	hasParent: true, 
-	parentType: 'ROOT_EFFECT', 
-	sync: true, 
+	hasParent: true,
+	parentType: 'ROOT_EFFECT',
+	sync: true,
 	component: 'NestedComponent'
 }
 ```
@@ -684,11 +997,12 @@ The bug is **not about `pop()` timing** but about **reactive dependency tracking
 5. **Mount rendering fails** because the first reactive access isn't properly tracked
 
 **The Real Problem:**
+
 ```javascript
 // Broken (direct access)
 if (stateObjectFromContext.showText === true)
 
-// Working (reactive access) 
+// Working (reactive access)
 if ($.get(stateObjectFromContext) === true)
 ```
 
@@ -706,3 +1020,172 @@ if ($.get(stateObjectFromContext) === true)
 **Behavior Changes:** Mount behavior becomes consistent with template rendering
 **Performance Impact:** Minimal - defers one function call via existing effect system
 **Breaking Changes:** None expected - fixes broken behavior rather than changing working behavior
+
+## Root Cause Analysis: Dependency Registration Failure
+
+### The Critical Mechanism: reaction_sources Check
+
+The core issue lies in how Svelte's dependency registration system handles sources created during effect execution. There's a critical difference in behavior between the first and subsequent `{#if}` blocks.
+
+#### Location 1: Initial Dependency Registration (runtime.js:897-950)
+
+```javascript
+export function get(signal) {
+	// ...
+	// Register the dependency on the current reaction signal.
+	if (active_reaction !== null && !untracking) {
+		if (!reaction_sources?.includes(signal)) {
+			// ← THE CRITICAL CHECK
+			var deps = active_reaction.deps;
+			if (signal.rv < read_version) {
+				signal.rv = read_version;
+				// Add signal to new_deps for processing...
+				if (new_deps === null && deps !== null && deps[skipped_deps] === signal) {
+					skipped_deps++;
+				} else if (new_deps === null) {
+					new_deps = [signal]; // ← Signal gets queued for dependency registration
+				} else if (!skip_reaction || !new_deps.includes(signal)) {
+					new_deps.push(signal);
+				}
+			}
+		}
+	}
+	// ...
+}
+```
+
+#### Location 2: Reverse Dependency Registration (runtime.js:456-460)
+
+```javascript
+function update_reaction(reaction) {
+	// ...
+	if (!skip_reaction) {
+		for (i = skipped_deps; i < deps.length; i++) {
+			(deps[i].reactions ??= []).push(reaction); // ← EFFECT GETS ADDED TO SOURCE'S REACTIONS
+		}
+	}
+	// ...
+}
+```
+
+### The Exact Failure Sequence
+
+#### First `{#if}` Block (h1 element) - FAILS Registration
+
+1. **Property Access**: `stateObjectFromContext.showText` is accessed during render
+2. **Source Creation**: `proxy.js:133` creates the source for `showText` property
+3. **Critical Issue**: `reaction_sources` contains `[showTextSource]` because the source was just created within this reaction
+4. **Check Fails**: `!reaction_sources?.includes(signal)` returns `false` because the signal IS in reaction_sources
+5. **No Registration**: The signal is NOT added to `new_deps`
+6. **No Reverse Link**: `update_reaction()` never adds this if-block effect to the source's `reactions` array
+7. **Result**: Source has `reactions: []` (empty) - no effects will be notified when it changes
+
+#### Second `{#if}` Block (p element) - SUCCEEDS Registration
+
+1. **Property Access**: `stateObjectFromContext.showText` is accessed during render
+2. **Source Reuse**: The source already exists from the first access
+3. **Critical Difference**: `reaction_sources` is `null` because source wasn't created in this reaction
+4. **Check Passes**: `!reaction_sources?.includes(signal)` returns `true` because reaction_sources is null
+5. **Gets Registered**: The signal gets added to `new_deps`
+6. **Reverse Link Created**: `update_reaction()` adds this if-block effect to the source's `reactions` array
+7. **Result**: Source has `reactions: [secondIfBlockEffect, ...]` - these effects get notified on changes
+
+### The State Change Impact
+
+When `stateObjectFromContext.showText` changes from `true` to `false`:
+
+1. **Source Update**: `internal_set()` in sources.js:185 updates the source value
+2. **Notification Phase**: Lines 189-191 iterate through `source.reactions` array
+3. **Missing Effect**: First if-block effect is NOT in the reactions array → never gets marked dirty
+4. **Present Effect**: Second if-block effect IS in the reactions array → gets marked dirty and schedules update
+5. **Visual Result**:
+   - `<h1>` element remains visible (effect never runs to hide it)
+   - `<p>` element correctly disappears (effect runs and updates DOM)
+
+This explains why we see the "stale first conditional" behavior - the first `{#if}` block's effect simply never gets notified that its dependency changed, so it never re-evaluates the condition.
+
+## Reproduction Case
+
+### Test Setup
+
+- **Component:** `NestedComponent.svelte` with conditional `{#if stateObjectFromContext.showText === true}`
+- **State:** `$state({ showText: true })` that toggles every 1000ms
+- **Mount Method A:** Template rendering via `<NestedComponent />`
+- **Mount Method B:** Programmatic via `mount(NestedComponent, { context: Map })`
+
+### Expected Behavior
+
+Conditional should only show content when `showText === true`, hiding both elements when `false`.
+
+### Actual Behavior
+
+**Template rendering (✅ Works):** Both elements show/hide correctly together.
+
+**Programmatic mounting (❌ Broken):**
+
+- First conditional (`<h1>`) gets "stuck" - remains visible even when state is `false`
+- Second conditional (`<p>`) works correctly - shows/hides as expected
+
+## Key Evidence
+
+### Critical Log Analysis
+
+**State Change Event:**
+
+```
+service.svelte.ts:21 Changing state from true to false
+sources.js:185 internal_set {f: 0, v: false, reactions: Array(3), rv: 46, equals: ƒ, …} false
+```
+
+**Reactions Array Content:**
+
+```
+sources.js:191 reaction get_effect_parents (25) [
+  0: {effectType: 'RENDER_EFFECT + BRANCH_EFFECT + CLEAN + EFFECT_RAN', component: 'NestedComponent.svelte'}  // ← Second if block
+  1: {effectType: 'RENDER_EFFECT + BLOCK_EFFECT + CLEAN + EFFECT_RAN', component: 'NestedComponent.svelte'}
+  2: {effectType: 'RENDER_EFFECT + BRANCH_EFFECT + CLEAN + EFFECT_RAN', component: 'NO_COMPONENT'}
+  // ... 22 more effects
+]
+// MISSING: First if-block effect is not in this array!
+```
+
+**The smoking gun:** The first `{#if}` block effect is completely absent from the state source's reactions array, while the second `{#if}` block effect is present at index 0.
+
+## Technical Analysis
+
+### Effect Context Hierarchy Differences
+
+**Template Rendering Context:**
+
+- Effects created within established component render context
+- Proper parent-child effect relationships maintained
+- Consistent `reaction_sources` behavior during dependency registration
+
+**Programmatic Mount Context:**
+
+- Effects created in different context hierarchy
+- First effect encounters different `reaction_sources` state during source creation
+- Subsequent effects encounter normal dependency registration flow
+
+### The `reaction_sources` Variable
+
+From `runtime.js:95-105`:
+
+```javascript
+/**
+ * When sources are created within a reaction, reading them should not add to the reaction's
+ * dependencies, as they were not created through external observation
+ */
+let reaction_sources = null;
+```
+
+This variable tracks sources created within the current reaction. The key insight:
+
+- **First access**: Creates the source, so `reaction_sources = [source]`
+- **Subsequent access**: Source exists, so `reaction_sources = null`
+
+The dependency registration check `!reaction_sources?.includes(signal)` prevents self-dependencies but inadvertently blocks legitimate dependencies in certain mounting contexts.
+
+## Resolution Direction
+
+The fix likely involves ensuring consistent `reaction_sources` behavior regardless of mounting method, or modifying the dependency registration logic to handle source creation timing differences in programmatic vs template mounting scenarios.

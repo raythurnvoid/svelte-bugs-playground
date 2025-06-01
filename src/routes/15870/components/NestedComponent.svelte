@@ -16,3 +16,7 @@
 {#if stateObjectFromContext.showText === true}
 	<h1>{stateObjectFromContext.showText}</h1>
 {/if}
+
+{#if stateObjectFromContext.showText === true}
+	<h2>{stateObjectFromContext.showText}</h2>
+{/if}
