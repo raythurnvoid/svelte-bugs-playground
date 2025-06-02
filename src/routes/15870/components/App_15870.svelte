@@ -3,23 +3,23 @@
 	import NestedComponent from './NestedComponent.svelte';
 	import { contextTest } from './service.svelte.js';
 
-	const stateObject = $state({
-		showText: true
-	});
+	// const stateObject = $state({
+	// 	showText: true
+	// });
 
-	setContext('stateContext', stateObject);
+	// setContext('stateContext', stateObject);
 
 	let element: HTMLElement;
 
 	onMount(() => {
-		// contextTest(element);
+		contextTest(element);
 
-		setInterval(() => {
-			stateObject.showText = !stateObject.showText;
-		}, 1000);
+		// setInterval(() => {
+		// 	stateObject.showText = !stateObject.showText;
+		// }, 1000);
 	});
 </script>
 
 <div bind:this={element}>
-	<NestedComponent />
+	<!-- <NestedComponent /> -->
 </div>

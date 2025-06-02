@@ -1,98 +1,58 @@
- [vite] connecting...
- [vite] connected.
- create_effect: ROOT {type: 64, hasParent: false, parentType: null, sync: true, push: true}
- create_effect: RENDER {type: 40, hasParent: true, parentType: '64', sync: true, push: true}
- create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
- create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
- push: creating component context {runes: true, m: false}
- create_effect: RENDER {type: 8, hasParent: true, parentType: '8', sync: false, push: true}
- create_effect: RENDER {type: 8, hasParent: true, parentType: '8', sync: true, push: true}
- if_block   0 0
- create_effect: RENDER {type: 24, hasParent: true, parentType: '8', sync: true, push: true}
- update_branch true {previousCondition: Symbol(), conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false}
- update_branch: condition is truthy {consequent_effect: false, alternate_effect: false, willResumeConsequent: false, willPauseAlternate: false}
- creating new consequent_effect
- create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
- create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
- create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
- create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
- create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
- push: creating component context {runes: true, m: false}
- create_effect: RENDER {type: 8, hasParent: true, parentType: '8', sync: false, push: true}
- create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
- create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
- create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
- create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
- create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
- create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
- push: creating component context {runes: false, m: false}
- create_effect: RENDER {type: 8, hasParent: true, parentType: '8', sync: false, push: true}
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
-context.js?t=1748709520195:104 push: creating component context {runes: false, m: false}
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 8, hasParent: true, parentType: '8', sync: false, push: true}
-effects.js?t=1748709520195:123 create_effect: UNKNOWN {type: 4, hasParent: true, parentType: '8', sync: false, push: true}
-context.js?t=1748709520195:142 pop: setting mounted flag {m: true}
-effects.js?t=1748709520195:123 create_effect: UNKNOWN {type: 4, hasParent: true, parentType: '8', sync: false, push: true}
-context.js?t=1748709520195:142 pop: setting mounted flag {m: true}
-effects.js?t=1748709520195:123 create_effect: UNKNOWN {type: 4, hasParent: true, parentType: '8', sync: false, push: true}
-context.js?t=1748709520195:142 pop: setting mounted flag {m: true}
-effects.js?t=1748709520195:123 create_effect: UNKNOWN {type: 4, hasParent: true, parentType: '8', sync: false, push: true}
-effects.js?t=1748709520195:619 resume_effect called: {effectType: 'BRANCH', hasChildren: true}
-if.js?t=1748712779627:22 if_block <!--[!--> ($$render) => {
-			if ($.get(mounted)) $$render(consequent_2);
-		} 0 0
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 24, hasParent: true, parentType: '8', sync: true, push: true}
-if.js?t=1748712779627:55 update_branch null {previousCondition: Symbol(), conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false}
-if.js?t=1748712779627:87 update_branch: condition is falsy {consequent_effect: false, alternate_effect: false, willResumeAlternate: false, willPauseConsequent: false}
-context.js?t=1748709520195:142 pop: setting mounted flag {m: true}
-effects.js?t=1748709520195:123 create_effect: UNKNOWN {type: 4, hasParent: true, parentType: '8', sync: false, push: true}
-effects.js?t=1748709520195:123 create_effect: UNKNOWN {type: 4, hasParent: true, parentType: '8', sync: false, push: true}
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 8, hasParent: true, parentType: undefined, sync: true, push: true}
-effects.js?t=1748709520195:123 create_effect: ROOT {type: 64, hasParent: true, parentType: undefined, sync: true, push: true}
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 40, hasParent: true, parentType: '64', sync: true, push: true}
-context.js?t=1748709520195:104 push: creating component context {runes: false, m: false}
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 8, hasParent: true, parentType: '8', sync: false, push: true}
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 65560, hasParent: true, parentType: '8', sync: true, push: true}
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
-context.js?t=1748709520195:104 push: creating component context {runes: false, m: false}
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 8, hasParent: true, parentType: '8', sync: false, push: true}
-NestedComponent.svelte?t=1748712779627:18 NestedComponent executing
-if.js?t=1748712779627:22 if_block <!----> ($$render) => {
-			if ($.strict_equals(stateObjectFromContext.showText, true)) $$render(consequent);
-		} 0 0
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 24, hasParent: true, parentType: '8', sync: true, push: true}
-if.js?t=1748712779627:55 update_branch true {previousCondition: Symbol(), conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false}
-if.js?t=1748712779627:65 update_branch: condition is truthy {consequent_effect: false, alternate_effect: false, willResumeConsequent: false, willPauseAlternate: false}
-if.js?t=1748712779627:76 creating new consequent_effect
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
-effects.js?t=1748709520195:369 template_effect created for text expression {activeEffect: true, activeEffectType: 'BRANCH'}
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 24, hasParent: true, parentType: '8', sync: true, push: true}
-render.js?t=1748712460631:76 set_text "true" true {activeEffect: true, activeEffectParent: 'HAS_PARENT', activeEffectType: 'RENDER', effectChain: 'RENDER → BRANCH → RENDER → BRANCH → RENDER'}
-effects.js?t=1748709520195:619 resume_effect called: {effectType: 'BRANCH', hasChildren: true}
-context.js?t=1748709520195:142 pop: setting mounted flag {m: true}
-context.js?t=1748709520195:142 pop: setting mounted flag {m: true}
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 8, hasParent: true, parentType: undefined, sync: true, push: true}
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 8, hasParent: true, parentType: undefined, sync: true, push: true}
-if.js?t=1748712779627:55 update_branch true {previousCondition: null, conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false}
-if.js?t=1748712779627:65 update_branch: condition is truthy {consequent_effect: false, alternate_effect: false, willResumeConsequent: false, willPauseAlternate: false}
-if.js?t=1748712779627:76 creating new consequent_effect
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 40, hasParent: true, parentType: '8', sync: true, push: true}
-if.js?t=1748712779627:22 if_block <!----> ($$render) => {
-					if ($.get(navigated)) $$render(consequent_1);
-				} 0 0
-effects.js?t=1748709520195:123 create_effect: RENDER {type: 24, hasParent: true, parentType: '8', sync: true, push: true}
-if.js?t=1748712779627:55 update_branch null {previousCondition: Symbol(), conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false}
-if.js?t=1748712779627:87 update_branch: condition is falsy {consequent_effect: false, alternate_effect: false, willResumeAlternate: false, willPauseConsequent: false}
-effects.js?t=1748709520195:619 resume_effect called: {effectType: 'BRANCH', hasChildren: true}
-service.svelte.ts?t=1748712779627:17 Starting interval
-service.svelte.ts?t=1748712779627:21 Changing state from true to false
-render.js?t=1748712460631:76 set_text "false" false {activeEffect: true, activeEffectParent: 'HAS_PARENT', activeEffectType: 'RENDER', effectChain: 'RENDER → BRANCH → RENDER → BRANCH → RENDER'}
-service.svelte.ts?t=1748712779627:21 Changing state from false to true
-render.js?t=1748712460631:76 set_text "true" true {activeEffect: true, activeEffectParent: 'HAS_PARENT', activeEffectType: 'RENDER', effectChain: 'RENDER → BRANCH → RENDER → BRANCH → RENDER'}
-service.svelte.ts?t=1748712779627:21 Changing state from true to false
-render.js?t=1748712460631:76 set_text "false" false {activeEffect: true, activeEffectParent: 'HAS_PARENT', activeEffectType: 'RENDER', effectChain: 'RENDER → BRANCH → RENDER → BRANCH → RENDER'}
-service.svelte.ts?t=1748712779627:21 Changing state from false to true
-render.js?t=1748712460631:76 set_text "true" true {activeEffect: true, activeEffectParent: 'HAS_PARENT', activeEffectType: 'RENDER', effectChain: 'RENDER → BRANCH → RENDER → BRANCH → RENDER'}
-service.svelte.ts?t=1748712779627:21 Changing state from true to false
-render.js?t=1748712460631:76 set_text "false" false {activeEffect: true, activeEffectParent: 'HAS_PARENT', activeEffectType: 'RENDER', effectChain: 'RENDER → BRANCH → RENDER → BRANCH → RENDER'}
+client:789 [vite] connecting...
+client:912 [vite] connected.
+NestedComponent.svelte?t=1748803334240:18 NestedComponent executing
+runtime.js?t=1748803334240:433 update_reaction {info: {…}, tree: {…}, parents: Array(23)}
+runtime.js?t=1748803334240:106 push_reaction_value value {f: 0, v: true, reactions: null, rv: 0, equals: ƒ, …}
+runtime.js?t=1748803334240:107 push_reaction_value active_reaction {info: {…}, tree: {…}, parents: Array(18)}info: component: "src/routes/15870/components/App_15870.svelte"effect: component_function: ƒ wrapper(anchor, props)Symbol(filename): "src/routes/15870/components/App_15870.svelte"Symbol(hmr): {source: {…}, original: ƒ}original: ƒ App_15870($$anchor, $$props)source: {f: 0, reactions: Array(1), rv: 21, v: ƒ, equals: ƒ, …}equals: ƒ equals(value)f: 0reactions: [{…}]rv: 21v: ƒ App_15870($$anchor, $$props)Symbol(filename): "src/routes/15870/components/App_15870.svelte"length: 2name: "App_15870"prototype: {}arguments: (...)caller: (...)[[FunctionLocation]]: App_15870.svelte?t=1748803334240:12[[Prototype]]: ƒ ()[[Scopes]]: Scopes[2]wv: 0[[Prototype]]: Object[[Prototype]]: Objectlength: 2name: "wrapper"prototype: {}arguments: (...)caller: (...)[[FunctionLocation]]: hmr.js?t=1748803334240:20[[Prototype]]: ƒ ()[[Scopes]]: Scopes[3]ctx: {p: {…}, c: null, d: false, e: null, m: true, …}deps: nullf: 2098180first: nullfn: () => {…}length: 0name: "$effect"arguments: (...)caller: (...)[[FunctionLocation]]: index-client.js?t=1748803334240:69[[Prototype]]: ƒ ()apply: ƒ apply()arguments: (...)bind: ƒ bind()call: ƒ call()caller: (...)constructor: ƒ Function()length: 0name: ""toString: ƒ toString()Symbol(Symbol.hasInstance): ƒ [Symbol.hasInstance]()get arguments: ƒ ()set arguments: ƒ ()get caller: ƒ ()set caller: ƒ ()[[FunctionLocation]]: [[Prototype]]: Object[[Scopes]]: Scopes[0][[Scopes]]: Scopes[3]0: Closure (onMount) {fn: ƒ}1: Module {e: Module, create_custom_event: ƒ, init_update_callbacks: ƒ, untrack: ƒ, is_array: ƒ, …}2: Global {window: Window, self: Window, document: document, name: '', location: Location, …}last: nullnext: nullnodes_end: nullnodes_start: nullparent: {ctx: {…}, deps: null, nodes_start: div, nodes_end: div, f: 33832, …}component_function: ƒ wrapper(anchor, props)Symbol(filename): "src/routes/15870/+page.svelte"Symbol(hmr): {source: {…}, original: ƒ}length: 2name: "wrapper"prototype: {}arguments: (...)caller: (...)[[FunctionLocation]]: hmr.js?t=1748803334240:20[[Prototype]]: ƒ ()[[Scopes]]: Scopes[3]ctx: {p: {…}, c: null, d: false, e: null, m: true, …}deps: nullf: 33832first: {ctx: {…}, deps: null, nodes_start: null, nodes_end: null, f: 1032, …}fn: () => {…}last: {ctx: {…}, deps: null, nodes_start: null, nodes_end: null, f: 2098180, …}next: nullnodes_end: divnodes_start: divparent: {ctx: {…}, deps: Array(1), nodes_start: null, nodes_end: null, f: 99352, …}prev: nullteardown: nulltransitions: nullwv: 9[[Prototype]]: Objectprev: {ctx: {…}, deps: null, nodes_start: null, nodes_end: null, f: 1028, …}teardown: nulltransitions: nullwv: 0[[Prototype]]: ObjecteffectType: "EFFECT + CLEAN + EFFECT_IS_UPDATING"[[Prototype]]: Objectparents: (18) [{…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}, {…}]tree: {effectType: 'EFFECT + CLEAN + EFFECT_IS_UPDATING', component: 'src/routes/15870/components/App_15870.svelte', effect: {…}, children: Array(0)}[[Prototype]]: Object
+runtime.js?t=1748803334240:900 get() signal {f: 0, v: true, reactions: null, rv: 0, equals: ƒ, …}
+runtime.js?t=1748803334240:903 get() signal active_reaction {info: {…}, tree: {…}, parents: Array(23)}
+runtime.js?t=1748803334240:911 get() signal reaction {info: {…}, tree: {…}, parents: Array(0)}
+if.js?t=1748803334240:60 update_branch true {previousCondition: Symbol(), conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false, fn: ƒ}
+runtime.js?t=1748803334240:433 update_reaction {info: {…}, tree: {…}, parents: Array(24)}
+runtime.js?t=1748803334240:433 update_reaction {info: {…}, tree: {…}, parents: Array(25)}
+runtime.js?t=1748803334240:900 get() signal {f: 0, v: true, reactions: null, rv: 0, equals: ƒ, …}
+runtime.js?t=1748803334240:903 get() signal active_reaction {info: {…}, tree: {…}, parents: Array(25)}
+runtime.js?t=1748803334240:433 update_reaction {info: {…}, tree: {…}, parents: Array(23)}
+runtime.js?t=1748803334240:900 get() signal {f: 0, v: true, reactions: Array(1), rv: 42, equals: ƒ, …}
+runtime.js?t=1748803334240:903 get() signal active_reaction {info: {…}, tree: {…}, parents: Array(23)}
+if.js?t=1748803334240:60 update_branch true {previousCondition: Symbol(), conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false, fn: ƒ}
+runtime.js?t=1748803334240:433 update_reaction {info: {…}, tree: {…}, parents: Array(24)}
+runtime.js?t=1748803334240:433 update_reaction {info: {…}, tree: {…}, parents: Array(25)}
+runtime.js?t=1748803334240:900 get() signal {f: 0, v: true, reactions: Array(1), rv: 44, equals: ƒ, …}
+runtime.js?t=1748803334240:903 get() signal active_reaction {info: {…}, tree: {…}, parents: Array(25)}
+service.svelte.ts?t=1748803334240:17 Starting interval
+service.svelte.ts?t=1748803334240:21 Changing state from true to false
+sources.js?t=1748803334240:185 internal_set {f: 0, v: false, reactions: Array(3), rv: 46, equals: ƒ, …} false
+sources.js?t=1748803334240:189 internal_set reaction {info: {…}, tree: {…}, parents: Array(25)}
+sources.js?t=1748803334240:189 internal_set reaction {info: {…}, tree: {…}, parents: Array(25)}
+sources.js?t=1748803334240:189 internal_set reaction {info: {…}, tree: {…}, parents: Array(23)}
+runtime.js?t=1748803334240:804 process_effects {info: {…}, tree: {…}, parents: Array(23)}
+runtime.js?t=1748803334240:804 process_effects {info: {…}, tree: {…}, parents: Array(24)}
+runtime.js?t=1748803334240:804 process_effects {info: {…}, tree: {…}, parents: Array(25)}
+runtime.js?t=1748803334240:433 update_reaction {info: {…}, tree: {…}, parents: Array(25)}
+runtime.js?t=1748803334240:900 get() signal {f: 0, v: false, reactions: Array(3), rv: 46, equals: ƒ, …}
+runtime.js?t=1748803334240:903 get() signal active_reaction {info: {…}, tree: {…}, parents: Array(25)}
+runtime.js?t=1748803334240:804 process_effects {info: {…}, tree: {…}, parents: Array(23)}
+runtime.js?t=1748803334240:433 update_reaction {info: {…}, tree: {…}, parents: Array(23)}
+runtime.js?t=1748803334240:900 get() signal {f: 0, v: false, reactions: Array(3), rv: 64, equals: ƒ, …}
+runtime.js?t=1748803334240:903 get() signal active_reaction {info: {…}, tree: {…}, parents: Array(23)}
+service.svelte.ts?t=1748803334240:21 Changing state from false to true
+sources.js?t=1748803334240:185 internal_set {f: 0, v: true, reactions: Array(2), rv: 65, equals: ƒ, …} true
+sources.js?t=1748803334240:189 internal_set reaction {info: {…}, tree: {…}, parents: Array(25)}
+sources.js?t=1748803334240:189 internal_set reaction {info: {…}, tree: {…}, parents: Array(23)}
+runtime.js?t=1748803334240:804 process_effects {info: {…}, tree: {…}, parents: Array(23)}
+runtime.js?t=1748803334240:804 process_effects {info: {…}, tree: {…}, parents: Array(24)}
+runtime.js?t=1748803334240:804 process_effects {info: {…}, tree: {…}, parents: Array(25)}
+runtime.js?t=1748803334240:433 update_reaction {info: {…}, tree: {…}, parents: Array(25)}
+runtime.js?t=1748803334240:900 get() signal {f: 0, v: true, reactions: Array(2), rv: 65, equals: ƒ, …}
+runtime.js?t=1748803334240:903 get() signal active_reaction {info: {…}, tree: {…}, parents: Array(25)}
+runtime.js?t=1748803334240:804 process_effects {info: {…}, tree: {…}, parents: Array(23)}
+runtime.js?t=1748803334240:433 update_reaction {info: {…}, tree: {…}, parents: Array(23)}
+runtime.js?t=1748803334240:900 get() signal {f: 0, v: true, reactions: Array(2), rv: 66, equals: ƒ, …}
+runtime.js?t=1748803334240:903 get() signal active_reaction {info: {…}, tree: {…}, parents: Array(23)}
+if.js?t=1748803334240:60 update_branch true {previousCondition: null, conditionChanged: true, hasConsequentEffect: false, hasAlternateEffect: false, fn: ƒ}
+runtime.js?t=1748803334240:433 update_reaction {info: {…}, tree: {…}, parents: Array(24)}
+runtime.js?t=1748803334240:433 update_reaction {info: {…}, tree: {…}, parents: Array(25)}
+runtime.js?t=1748803334240:900 get() signal {f: 0, v: true, reactions: Array(2), rv: 67, equals: ƒ, …}
+runtime.js?t=1748803334240:903 get() signal active_reaction {info: {…}, tree: {…}, parents: Array(25)}
+runtime.js?t=1748803334240:804 process_effects {info: {…}, tree: {…}, parents: Array(24)}
