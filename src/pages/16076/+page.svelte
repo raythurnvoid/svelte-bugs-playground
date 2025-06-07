@@ -1,7 +1,7 @@
-<script lang="ts">
+<script>
 	import { flushSync } from 'svelte';
 
-	let flag: boolean = $state(true);
+	let flag = $state(true);
 	let boolElText = $state(true);
 
 	async function handleClick() {
@@ -18,5 +18,5 @@
 <div>flag : {flag}</div>
 
 {#if !flag}
-	<div>flag : {boolElText}</div>
+	<div>boolElText : {boolElText}</div>
 {/if}
