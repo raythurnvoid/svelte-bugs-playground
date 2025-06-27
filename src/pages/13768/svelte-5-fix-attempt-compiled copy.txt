@@ -1,0 +1,35 @@
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/legacy';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<select><option>1</option></select>`);
+
+export default function App($$anchor, $$props) {
+	$.push($$props, false);
+
+	const data = $.mutable_source();
+	const details = $.mutable_source();
+	const default_details = { country: "" };
+
+	$.legacy_pre_effect(() => {}, () => {
+		$.set(data, { locked: false, details: null });
+	});
+
+	$.legacy_pre_effect(() => ($.get(data)), () => {
+		$.set(details, $.get(data).details ?? default_details);
+	});
+
+	$.legacy_pre_effect_reset();
+
+	var select = root();
+	var option = $.child(select);
+
+	option.value = option.__value = '1';
+	$.reset(select);
+	
+	$.template_effect(() => select.disabled = $.get(data).locked);
+	
+	$.bind_select_value(select, () => $.get(details).country, ($$value) => $.mutate(details, $.get(details).country = $$value));
+	$.append($$anchor, select);
+	$.pop();
+}

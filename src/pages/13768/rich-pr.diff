@@ -1,0 +1,181 @@
+diff --git a/packages/svelte/src/compiler/phases/2-analyze/visitors/RegularElement.js b/packages/svelte/src/compiler/phases/2-analyze/visitors/RegularElement.js
+index d5689e5d5..2b8077f6a 100644
+--- a/packages/svelte/src/compiler/phases/2-analyze/visitors/RegularElement.js
++++ b/packages/svelte/src/compiler/phases/2-analyze/visitors/RegularElement.js
+@@ -12,6 +12,7 @@ import { regex_starts_with_newline } from '../../patterns.js';
+ import { check_element } from './shared/a11y.js';
+ import { validate_element } from './shared/element.js';
+ import { mark_subtree_dynamic } from './shared/fragment.js';
++import { object } from '../../../utils/ast.js';
+ 
+ /**
+  * @param {AST.RegularElement} node
+@@ -59,6 +60,34 @@ export function RegularElement(node, context) {
+ 		}
+ 	}
+ 
++	// Special case: `<select bind:value={foo}><option>{bar}</option>`
++	// means we need to invalidate `bar` whenever `foo` is mutated
++	if (node.name === 'select') {
++		for (const attribute of node.attributes) {
++			if (
++				attribute.type === 'BindDirective' &&
++				attribute.name === 'value' &&
++				attribute.expression.type !== 'SequenceExpression'
++			) {
++				const identifier = object(attribute.expression);
++				const binding = identifier && context.state.scope.get(identifier.name);
++
++				if (binding) {
++					for (const name of context.state.scope.references.keys()) {
++						if (name === binding.node.name) continue;
++
++						const indirect = context.state.scope.get(name);
++
++						if (indirect) {
++							binding.legacy_indirect_bindings.add(indirect);
++						}
++					}
++				}
++
++				break;
++			}
++		}
++	}
++
+ 	if (node.name === 'slot') {
+ 		validate_slot_element(node, context);
+ 	}
+diff --git a/packages/svelte/src/compiler/phases/3-transform/client/visitors/AssignmentExpression.js b/packages/svelte/src/compiler/phases/3-transform/client/visitors/AssignmentExpression.js
+index e829b9c9e..18e25b4c1 100644
+--- a/packages/svelte/src/compiler/phases/3-transform/client/visitors/AssignmentExpression.js
++++ b/packages/svelte/src/compiler/phases/3-transform/client/visitors/AssignmentExpression.js
+@@ -8,7 +8,7 @@ import {
+ 	is_event_attribute
+ } from '../../../../utils/ast.js';
+ import { dev, locate_node } from '../../../../state.js';
+-import { should_proxy } from '../utils.js';
++import { build_getter, should_proxy } from '../utils.js';
+ import { visit_assignment_expression } from '../../shared/assignments.js';
+ import { validate_mutation } from './shared/utils.js';
+ import { get_rune } from '../../../scope.js';
+@@ -212,6 +212,25 @@ export function AssignmentExpression(node, context) {
+ 				)
+ 			);
+ 
++			if (binding.legacy_indirect_bindings.size > 0) {
++				mutation = b.sequence([
++					mutation,
++					b.call(
++						'$.invalidate_inner_signals',
++						b.arrow(
++							[],
++							b.block(
++								Array.from(binding.legacy_indirect_bindings).map((binding) =>
++									b.stmt(build_getter({ ...binding.node }, context.state))
++								)
++							)
++						)
++					)
++				]);
++			}
++
++			return mutation;
+ 		}
+ 
+ 		// in cases like `(object.items ??= []).push(value)`, we may need to warn
+diff --git a/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js b/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js
+index 1aefff0db..2bf1bfce4 100644
+--- a/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js
++++ b/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js
+@@ -191,10 +191,6 @@ export function RegularElement(node, context) {
+ 		}
+ 	}
+ 
+-	if (node.name === 'select' && bindings.has('value')) {
+-		setup_select_synchronization(/** @type {AST.BindDirective} */ (bindings.get('value')), context);
+-	}
+-
+ 	// Let bindings first, they can be used on attributes
+ 	context.state.init.push(...lets);
+ 
+@@ -395,62 +391,6 @@ export function RegularElement(node, context) {
+ 	context.state.template.pop_element();
+ }
+ 
+-/**
+- * Special case: if we have a value binding on a select element, we need to set up synchronization
+- * between the value binding and inner signals, for indirect updates
+- * @param {AST.BindDirective} value_binding
+- * @param {ComponentContext} context
+- */
+-function setup_select_synchronization(value_binding, context) {
+-	if (context.state.analysis.runes) return;
+-
+-	let bound = value_binding.expression;
+-
+-	if (bound.type === 'SequenceExpression') {
+-		return;
+-	}
+-
+-	while (bound.type === 'MemberExpression') {
+-		bound = /** @type {Identifier | MemberExpression} */ (bound.object);
+-	}
+-
+-	/** @type {string[]} */
+-	const names = [];
+-
+-	for (const [name, refs] of context.state.scope.references) {
+-		if (
+-			refs.length > 0 &&
+-			// prevent infinite loop
+-			name !== bound.name
+-		) {
+-			names.push(name);
+-		}
+-	}
+-
+-	const invalidator = b.call(
+-		'$.invalidate_inner_signals',
+-		b.thunk(
+-			b.block(
+-				names.map((name) => {
+-					const serialized = build_getter(b.id(name), context.state);
+-					return b.stmt(serialized);
+-				})
+-			)
+-		)
+-	);
+-
+-	context.state.init.push(
+-		b.stmt(
+-			b.call(
+-				'$.template_effect',
+-				b.thunk(
+-					b.block([b.stmt(/** @type {Expression} */ (context.visit(bound))), b.stmt(invalidator)])
+-				)
+-			)
+-		)
+-	);
+-}
+-
+ /**
+  * @param {AST.ClassDirective[]} class_directives
+  * @param {Expression[]} expressions
+diff --git a/packages/svelte/src/compiler/phases/scope.js b/packages/svelte/src/compiler/phases/scope.js
+index 8a2cc39ba..deef083f7 100644
+--- a/packages/svelte/src/compiler/phases/scope.js
++++ b/packages/svelte/src/compiler/phases/scope.js
+@@ -114,6 +114,12 @@ export class Binding {
+ 	 */
+ 	legacy_dependencies = [];
+ 
++	/**
++	 * Bindings that should be invalidated when this binding is invalidated
++	 * @type {Set<Binding>}
++	 */
++	legacy_indirect_bindings = new Set();
++
+ 	/**
+ 	 * Legacy props: the `class` in `{ export klass as class}`. $props(): The `class` in { class: klass } = $props()
+ 	 * @type {string | null}

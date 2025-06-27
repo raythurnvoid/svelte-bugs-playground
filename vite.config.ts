@@ -15,12 +15,12 @@ export default defineConfig({
 	},
 
 	build: {
+		minify: false,
 		rollupOptions: {
 			input: {
 				main: path.resolve(__dirname, "index.html"),
-				"15870": path.resolve(__dirname, "src/pages/15870/index.html"),
-				"16076": path.resolve(__dirname, "src/pages/16076/index.html"),
-				"16090": path.resolve(__dirname, "src/pages/16090/index.html"),
+				"13768": path.resolve(__dirname, "src/pages/13768/index.html"),
+				"13768_2": path.resolve(__dirname, "src/pages/13768_2/index.html"),
 			},
 		},
 	},

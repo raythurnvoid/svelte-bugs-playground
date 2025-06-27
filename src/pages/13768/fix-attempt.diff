@@ -1,0 +1,234 @@
+diff --git a/.changeset/wild-queens-promise.md b/.changeset/wild-queens-promise.md
+new file mode 100644
+index 000000000..360b5f9eb
+--- /dev/null
++++ b/.changeset/wild-queens-promise.md
+@@ -0,0 +1,5 @@
++---
++'svelte': patch
++---
++
++Improve compiler output on legacy components to prevent infinite loops from <select> bind:value on $: derived variables
+diff --git a/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js b/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js
+index e82379299..1804e88a6 100644
+--- a/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js
++++ b/packages/svelte/src/compiler/phases/3-transform/client/visitors/RegularElement.js
+@@ -414,6 +414,23 @@ function setup_select_synchronization(value_binding, context) {
+ 		bound = /** @type {Identifier | MemberExpression} */ (bound.object);
+ 	}
+ 
++	// Skip synchronisation if the bound identifier is *already* updated by a
++	// reactive statement (declared directly in `$:` or assigned inside one).
++	// In those cases the extra invalidate-helper would re-write its own
++	// source signal and create a circular update loop.
++	if (bound.type === 'Identifier') {
++		const binding = context.state.scope.get(bound.name);
++		if (binding) {
++			// 1) declared directly inside a `$:`
++			if (binding.kind === 'legacy_reactive') return;
++
++			// 2) declared elsewhere but *assigned* inside a `$:` block
++			for (const [, rs] of context.state.analysis.reactive_statements) {
++				if (rs.assignments.has(binding)) return;
++			}
++		}
++	}
++
+ 	/** @type {string[]} */
+ 	const names = [];
+ 
+diff --git a/packages/svelte/tests/runtime-legacy/samples/binding-select-reactive-block/_config.js b/packages/svelte/tests/runtime-legacy/samples/binding-select-reactive-block/_config.js
+new file mode 100644
+index 000000000..79d8ffff0
+--- /dev/null
++++ b/packages/svelte/tests/runtime-legacy/samples/binding-select-reactive-block/_config.js
+@@ -0,0 +1,46 @@
++import { test } from '../../test';
++import { tick } from 'svelte';
++
++export default test({
++	html: `
++		<select>
++			<option value="1">1</option>
++			<option value="US">US</option>
++			<option value="FR">FR</option>
++		</select>
++		<button id="btn-us">US</button>
++		<button id="btn-reset">Reset</button>
++		<button id="btn-fr">FR</button>
++	`,
++
++	async test({ assert, component, window, logs }) {
++		// Primary assertion: No infinite loop error
++		assert.notInclude(logs, 'Infinite loop detected');
++
++		// Verify component state
++		const select = window.document.querySelector('select');
++		if (!select) {
++			assert.fail('Select element not found');
++			return;
++		}
++
++		// With default_details fallback nothing is selected
++		assert.equal(select.value, '');
++		assert.equal(select.disabled, false);
++
++		window.document.getElementById('btn-us')?.click();
++		await tick();
++		assert.equal(select.disabled, true);
++		assert.equal(select.value, 'US');
++
++		window.document.getElementById('btn-reset')?.click();
++		await tick();
++		assert.equal(select.value, '');
++		assert.equal(select.disabled, false);
++
++		window.document.getElementById('btn-fr')?.click();
++		await tick();
++		assert.equal(select.value, 'FR');
++		assert.equal(select.disabled, true);
++	}
++});
+diff --git a/packages/svelte/tests/runtime-legacy/samples/binding-select-reactive-block/main.svelte b/packages/svelte/tests/runtime-legacy/samples/binding-select-reactive-block/main.svelte
+new file mode 100644
+index 000000000..45f2b129e
+--- /dev/null
++++ b/packages/svelte/tests/runtime-legacy/samples/binding-select-reactive-block/main.svelte
+@@ -0,0 +1,41 @@
++<script>
++	const default_details = { country: '' };
++
++	$: data = { locked: false, details: null };
++
++	let details;
++	$: {
++		details = guard_infinite_loop() ?? data.details ?? default_details;
++	}
++
++	// Guard: if this reactive block runs too often we assume an infinite loop
++	let guard_infinite_loop_counter = 0;
++	function guard_infinite_loop() {
++		guard_infinite_loop_counter++;
++		if (guard_infinite_loop_counter > 20) {
++			throw new Error('Infinite loop detected');
++		}
++	}
++
++	function setUS() {
++		data = { locked: true, details: { country: 'US' } };
++	}
++
++	function resetData() {
++		data = { locked: false, details: null };
++	}
++
++	function setFR() {
++		data = { locked: true, details: { country: 'FR' } };
++	}
++</script>
++
++<select bind:value={details.country} disabled={data.locked}>
++	<option value="1">1</option>
++	<option value="US">US</option>
++	<option value="FR">FR</option>
++</select>
++
++<button id="btn-us" on:click={setUS}>US</button>
++<button id="btn-reset" on:click={resetData}>Reset</button>
++<button id="btn-fr" on:click={setFR}>FR</button>
+diff --git a/packages/svelte/tests/runtime-legacy/samples/binding-select-reactive-fallback/_config.js b/packages/svelte/tests/runtime-legacy/samples/binding-select-reactive-fallback/_config.js
+new file mode 100644
+index 000000000..d4274870c
+--- /dev/null
++++ b/packages/svelte/tests/runtime-legacy/samples/binding-select-reactive-fallback/_config.js
+@@ -0,0 +1,46 @@
++import { tick } from 'svelte';
++import { test } from '../../test';
++
++export default test({
++	html: `
++		<select>
++			<option value="1">1</option>
++			<option value="US">US</option>
++			<option value="FR">FR</option>
++		</select>
++		<button id="btn-us">US</button>
++		<button id="btn-reset">Reset</button>
++		<button id="btn-fr">FR</button>
++	`,
++
++	async test({ assert, component, window, logs }) {
++		// Primary assertion: No infinite loop error
++		assert.notInclude(logs, 'Infinite loop detected');
++
++		// Verify component state
++		const select = window.document.querySelector('select');
++		if (!select) {
++			assert.fail('Select element not found');
++			return;
++		}
++
++		// With default_details fallback nothing is selected
++		assert.equal(select.value, '');
++		assert.equal(select.disabled, false);
++
++		window.document.getElementById('btn-us')?.click();
++		await tick();
++		assert.equal(select.disabled, true);
++		assert.equal(select.value, 'US');
++
++		window.document.getElementById('btn-reset')?.click();
++		await tick();
++		assert.equal(select.value, '');
++		assert.equal(select.disabled, false);
++
++		window.document.getElementById('btn-fr')?.click();
++		await tick();
++		assert.equal(select.value, 'FR');
++		assert.equal(select.disabled, true);
++	}
++});
+diff --git a/packages/svelte/tests/runtime-legacy/samples/binding-select-reactive-fallback/main.svelte b/packages/svelte/tests/runtime-legacy/samples/binding-select-reactive-fallback/main.svelte
+new file mode 100644
+index 000000000..09b5dff73
+--- /dev/null
++++ b/packages/svelte/tests/runtime-legacy/samples/binding-select-reactive-fallback/main.svelte
+@@ -0,0 +1,38 @@
++<script>
++	const default_details = { country: '' };
++
++	$: data = { locked: false, details: null };
++
++	$: details = guard_infinite_loop() ?? data.details ?? default_details;
++
++	// Guard: if this reactive block runs too often we assume an infinite loop
++	let guard_infinite_loop_counter = 0;
++	function guard_infinite_loop() {
++		guard_infinite_loop_counter++;
++		if (guard_infinite_loop_counter > 20) {
++			throw new Error('Infinite loop detected');
++		}
++	}
++
++	function setUS() {
++		data = { locked: true, details: { country: 'US' } };
++	}
++
++	function resetData() {
++		data = { locked: false, details: null };
++	}
++
++	function setFR() {
++		data = { locked: true, details: { country: 'FR' } };
++	}
++</script>
++
++<select bind:value={details.country} disabled={data.locked}>
++	<option value="1">1</option>
++	<option value="US">US</option>
++	<option value="FR">FR</option>
++</select>
++
++<button id="btn-us" on:click={setUS}>US</button>
++<button id="btn-reset" on:click={resetData}>Reset</button>
++<button id="btn-fr" on:click={setFR}>FR</button>

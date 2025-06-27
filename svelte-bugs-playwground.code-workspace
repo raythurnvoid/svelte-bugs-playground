@@ -6,8 +6,12 @@
 		{
 			"path": "../svelte"
 		}
-	],
-	"settings": {
-		"typescript.tsdk": "./node_modules/typescript/lib"
+	},
+	{
+		"path": "../svelte.dev"
 	}
+],
+"settings": {
+	"typescript.tsdk": "./node_modules/typescript/lib"
+}
 }
